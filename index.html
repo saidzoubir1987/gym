@@ -581,8 +581,8 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const AIRTABLE_CONFIG = {
-        personalAccessToken: 'YOUR_AIRTABLE_PERSONAL_ACCESS_TOKEN',
-        baseId: 'YOUR_AIRTABLE_BASE_ID',
+        personalAccessToken: window.AIRTABLE_CONFIG?.personalAccessToken || 'YOUR_AIRTABLE_PERSONAL_ACCESS_TOKEN',
+        baseId: window.AIRTABLE_CONFIG?.baseId || 'YOUR_AIRTABLE_BASE_ID',
         tableName: 'customers',
     };
     const AIRTABLE_API_URL = `https://api.airtable.com/v0/${AIRTABLE_CONFIG.baseId}/${encodeURIComponent(AIRTABLE_CONFIG.tableName)}`;
@@ -632,6 +632,17 @@ document.addEventListener('DOMContentLoaded', () => {
         'Content-Type': 'application/json',
     });
 
+    const validateAirtableConfig = () => {
+        if (
+            !AIRTABLE_CONFIG.personalAccessToken ||
+            !AIRTABLE_CONFIG.baseId ||
+            AIRTABLE_CONFIG.personalAccessToken === 'YOUR_AIRTABLE_PERSONAL_ACCESS_TOKEN' ||
+            AIRTABLE_CONFIG.baseId === 'YOUR_AIRTABLE_BASE_ID'
+        ) {
+            throw new Error('Airtable config is missing. Set window.AIRTABLE_CONFIG with personalAccessToken and baseId.');
+        }
+    };
+
     const mapRecordToCustomer = (record) => {
         const fields = record.fields || {};
         const endDate = fields.subscription_end || '';
@@ -654,6 +665,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const fetchAllCustomers = async () => {
+        validateAirtableConfig();
         const customers = [];
         let offset = '';
 
@@ -672,6 +684,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const createCustomerInAirtable = async ({ name, phone }) => {
+        validateAirtableConfig();
         const response = await fetch(AIRTABLE_API_URL, {
             method: 'POST',
             headers: getAirtableHeaders(),
@@ -696,6 +709,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const updateCustomerInAirtable = async (recordId, fields) => {
+        validateAirtableConfig();
         const response = await fetch(`${AIRTABLE_API_URL}/${recordId}`, {
             method: 'PATCH',
             headers: getAirtableHeaders(),
@@ -710,6 +724,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const deleteCustomerFromAirtable = async (recordId) => {
+        validateAirtableConfig();
         const response = await fetch(`${AIRTABLE_API_URL}/${recordId}`, {
             method: 'DELETE',
             headers: getAirtableHeaders(),
