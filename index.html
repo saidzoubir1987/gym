@@ -988,9 +988,14 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             case 'delete-customer': {
                 if (confirm('Are you sure you want to delete this customer and all their devices?')) {
-                    await deleteDoc(doc(db, 'customers', customerId));
-                    appState.customers = appState.customers.filter(c => c.id !== customerId);
-                    renderAll();
+                    try {
+                        await deleteDoc(doc(db, 'customers', customerId));
+                        appState.customers = appState.customers.filter(c => c.id !== customerId);
+                        renderAll();
+                    } catch (error) {
+                        console.error('Failed to delete customer:', error);
+                        alert('Failed to delete customer. Please try again.');
+                    }
                 }
                 break;
             }
@@ -1025,21 +1030,26 @@ document.addEventListener('DOMContentLoaded', () => {
             const formData = new FormData(e.target);
             const customerData = Object.fromEntries(formData.entries());
 
-            if (appState.editingCustomerId) {
-                // Edit existing customer
-                const customerIndex = appState.customers.findIndex(c => c.id === appState.editingCustomerId);
-                if(customerIndex !== -1) {
-                    appState.customers[customerIndex] = { ...appState.customers[customerIndex], ...customerData };
-                    await updateDoc(doc(db, 'customers', appState.editingCustomerId), customerData);
+            try {
+                if (appState.editingCustomerId) {
+                    // Edit existing customer
+                    const customerIndex = appState.customers.findIndex(c => c.id === appState.editingCustomerId);
+                    if(customerIndex !== -1) {
+                        await updateDoc(doc(db, 'customers', appState.editingCustomerId), customerData);
+                        appState.customers[customerIndex] = { ...appState.customers[customerIndex], ...customerData };
+                    }
+                } else {
+                    // Add new customer
+                    const customerRef = await addDoc(customersCollection, { ...customerData, devices: [] });
+                    const newCustomer = { ...customerData, id: customerRef.id, devices: [] };
+                    appState.customers.push(newCustomer);
                 }
-            } else {
-                // Add new customer
-                const customerRef = await addDoc(customersCollection, { ...customerData, devices: [] });
-                const newCustomer = { ...customerData, id: customerRef.id, devices: [] };
-                appState.customers.push(newCustomer);
+                renderAll();
+                closeModal();
+            } catch (error) {
+                console.error('Failed to save customer:', error);
+                alert('Failed to save customer. Please try again.');
             }
-            renderAll();
-            closeModal();
         }
 
         if (e.target.id === 'deviceForm') {
@@ -1049,28 +1059,41 @@ document.addEventListener('DOMContentLoaded', () => {
             const customer = appState.customers.find(c => c.id === appState.editingCustomerId);
             
             if (customer) {
-                if (appState.editingDeviceId) {
-                    // Edit device
-                    const deviceIndex = customer.devices.findIndex(d => d.id === appState.editingDeviceId);
-                    if (deviceIndex !== -1) {
-                        customer.devices[deviceIndex] = { ...customer.devices[deviceIndex], ...deviceData };
+                try {
+                    let updatedDevices = customer.devices || [];
+                    if (appState.editingDeviceId) {
+                        // Edit device
+                        const deviceIndex = updatedDevices.findIndex(d => d.id === appState.editingDeviceId);
+                        if (deviceIndex !== -1) {
+                            updatedDevices = updatedDevices.map((device) => (
+                                device.id === appState.editingDeviceId ? { ...device, ...deviceData } : device
+                            ));
+                        }
+                    } else {
+                        // Add device
+                        const newDevice = { ...deviceData, id: generateId() };
+                        updatedDevices = [...updatedDevices, newDevice];
                     }
-                } else {
-                    // Add device
-                    const newDevice = { ...deviceData, id: generateId() };
-                    if (!customer.devices) customer.devices = [];
-                    customer.devices.push(newDevice);
+                    await updateDoc(doc(db, 'customers', customer.id), { devices: updatedDevices });
+                    customer.devices = updatedDevices;
+                    renderAll();
+                    closeModal();
+                } catch (error) {
+                    console.error('Failed to save device:', error);
+                    alert('Failed to save device. Please try again.');
                 }
-                await updateDoc(doc(db, 'customers', customer.id), { devices: customer.devices });
-                renderAll();
-                closeModal();
             }
         }
     });
 
     // --- Initial Load ---
     const init = async () => {
-        await loadData();
+        try {
+            await loadData();
+        } catch (error) {
+            console.error('Failed to load customers:', error);
+            alert('Failed to load customers from Firestore. Showing empty state.');
+        }
         navigateTo('dashboard');
         renderAll();
     };
