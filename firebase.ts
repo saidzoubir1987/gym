@@ -2,7 +2,7 @@ import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-apiKey: "AIzaSyDxxxxxxxxxxxx"
+  apiKey: "AIzaSyDxxxxxxxxxxxx",
   authDomain: "micodiag.firebaseapp.com",
   projectId: "micodiag",
   storageBucket: "micodiag.firebasestorage.app",
