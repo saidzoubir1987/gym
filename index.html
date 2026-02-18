@@ -667,7 +667,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const response = await fetch(`${API_URL}?id=${encodeURIComponent(id)}`, {
             method: 'DELETE',
             headers: DEFAULT_HEADERS,
-            body: JSON.stringify({ id }),
         });
         if (!response.ok) throw new Error(`Failed to delete customer: ${response.status}`);
         return parseApiResponse(response);
@@ -1039,7 +1038,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         renderAll();
                     } catch (error) {
                         console.error('Error deleting customer:', error);
-                        alert('Failed to save data. Please try again.');
+                        alert('Failed to delete customer. Please try again.');
                     }
                 }
                 break;
