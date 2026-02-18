@@ -580,6 +580,13 @@ document.addEventListener('DOMContentLoaded', () => {
         editingDeviceId: null,
     };
 
+    const AIRTABLE_CONFIG = {
+        personalAccessToken: 'YOUR_AIRTABLE_PERSONAL_ACCESS_TOKEN',
+        baseId: 'YOUR_AIRTABLE_BASE_ID',
+        tableName: 'customers',
+    };
+    const AIRTABLE_API_URL = `https://api.airtable.com/v0/${AIRTABLE_CONFIG.baseId}/${encodeURIComponent(AIRTABLE_CONFIG.tableName)}`;
+
     // --- DOM Elements ---
     const sidebar = document.getElementById('sidebar');
     const mainContainer = document.getElementById('mainContainer');
@@ -614,16 +621,107 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // --- Data Persistence ---
-    const saveData = () => {
-        localStorage.setItem('subscriptionData', JSON.stringify(appState.customers));
+    // --- Airtable Integration ---
+    const handleError = (error, userMessage) => {
+        console.error(error);
+        alert(userMessage);
     };
 
-    const loadData = () => {
-        const data = localStorage.getItem('subscriptionData');
-        if (data) {
-            appState.customers = JSON.parse(data);
+    const getAirtableHeaders = () => ({
+        Authorization: `Bearer ${AIRTABLE_CONFIG.personalAccessToken}`,
+        'Content-Type': 'application/json',
+    });
+
+    const mapRecordToCustomer = (record) => {
+        const fields = record.fields || {};
+        const endDate = fields.subscription_end || '';
+        const hasDeviceData = fields.car_name || fields.imei || fields.sim_number || endDate;
+
+        return {
+            id: record.id,
+            name: fields.name || '',
+            phone: fields.phone || '',
+            email: '',
+            devices: hasDeviceData ? [{
+                id: `device_${record.id}`,
+                carName: fields.car_name || '',
+                imei: fields.imei || '',
+                devicePhone: fields.sim_number || '',
+                startDate: '',
+                endDate,
+            }] : [],
+        };
+    };
+
+    const fetchAllCustomers = async () => {
+        const customers = [];
+        let offset = '';
+
+        do {
+            const requestUrl = offset ? `${AIRTABLE_API_URL}?offset=${encodeURIComponent(offset)}` : AIRTABLE_API_URL;
+            const response = await fetch(requestUrl, { headers: getAirtableHeaders() });
+            if (!response.ok) {
+                throw new Error(`Failed to fetch customers (${response.status})`);
+            }
+            const data = await response.json();
+            customers.push(...(data.records || []).map(mapRecordToCustomer));
+            offset = data.offset || '';
+        } while (offset);
+
+        return customers;
+    };
+
+    const createCustomerInAirtable = async ({ name, phone }) => {
+        const response = await fetch(AIRTABLE_API_URL, {
+            method: 'POST',
+            headers: getAirtableHeaders(),
+            body: JSON.stringify({
+                fields: {
+                    name,
+                    phone,
+                    car_name: '',
+                    imei: '',
+                    sim_number: '',
+                    subscription_end: '',
+                    status: 'Active',
+                },
+            }),
+        });
+
+        if (!response.ok) {
+            throw new Error(`Failed to create customer (${response.status})`);
         }
+
+        return response.json();
+    };
+
+    const updateCustomerInAirtable = async (recordId, fields) => {
+        const response = await fetch(`${AIRTABLE_API_URL}/${recordId}`, {
+            method: 'PATCH',
+            headers: getAirtableHeaders(),
+            body: JSON.stringify({ fields }),
+        });
+
+        if (!response.ok) {
+            throw new Error(`Failed to update customer (${response.status})`);
+        }
+
+        return response.json();
+    };
+
+    const deleteCustomerFromAirtable = async (recordId) => {
+        const response = await fetch(`${AIRTABLE_API_URL}/${recordId}`, {
+            method: 'DELETE',
+            headers: getAirtableHeaders(),
+        });
+
+        if (!response.ok) {
+            throw new Error(`Failed to delete customer (${response.status})`);
+        }
+    };
+
+    const loadData = async () => {
+        appState.customers = await fetchAllCustomers();
     };
 
     // --- Rendering ---
@@ -965,7 +1063,7 @@ document.addEventListener('DOMContentLoaded', () => {
         showCustomerForm();
     });
 
-    document.addEventListener('click', (e) => {
+    document.addEventListener('click', async (e) => {
         if (e.target.matches('.close-modal-btn') || (e.target.matches('.modal-backdrop') && !e.target.closest('.modal')) || e.target.closest('[data-action="close-modal"]')) {
             closeModal();
         }
@@ -986,9 +1084,14 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             case 'delete-customer': {
                 if (confirm('Are you sure you want to delete this customer and all their devices?')) {
-                    appState.customers = appState.customers.filter(c => c.id !== customerId);
-                    saveData();
-                    renderAll();
+                    try {
+                        await deleteCustomerFromAirtable(customerId);
+                        appState.customers = appState.customers.filter(c => c.id !== customerId);
+                        renderAll();
+                        alert('Customer deleted successfully.');
+                    } catch (error) {
+                        handleError(error, 'Failed to delete customer. Please try again.');
+                    }
                 }
                 break;
             }
@@ -1017,26 +1120,38 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    document.addEventListener('submit', (e) => {
+    document.addEventListener('submit', async (e) => {
         if (e.target.id === 'customerForm') {
             e.preventDefault();
             const formData = new FormData(e.target);
             const customerData = Object.fromEntries(formData.entries());
 
-            if (appState.editingCustomerId) {
-                // Edit existing customer
-                const customerIndex = appState.customers.findIndex(c => c.id === appState.editingCustomerId);
-                if(customerIndex !== -1) {
-                    appState.customers[customerIndex] = { ...appState.customers[customerIndex], ...customerData };
+            try {
+                if (appState.editingCustomerId) {
+                    const updatedRecord = await updateCustomerInAirtable(appState.editingCustomerId, {
+                        name: customerData.name,
+                        phone: customerData.phone,
+                    });
+                    const customerIndex = appState.customers.findIndex(c => c.id === appState.editingCustomerId);
+                    if (customerIndex !== -1) {
+                        appState.customers[customerIndex] = {
+                            ...appState.customers[customerIndex],
+                            ...customerData,
+                            id: updatedRecord.id,
+                        };
+                    }
+                    alert('Customer updated successfully.');
+                } else {
+                    const newRecord = await createCustomerInAirtable(customerData);
+                    appState.customers.push(mapRecordToCustomer(newRecord));
+                    alert('Customer added successfully.');
                 }
-            } else {
-                // Add new customer
-                const newCustomer = { ...customerData, id: generateId(), devices: [] };
-                appState.customers.push(newCustomer);
+                e.target.reset();
+                renderAll();
+                closeModal();
+            } catch (error) {
+                handleError(error, 'Failed to save customer. Please check your Airtable settings and try again.');
             }
-            saveData();
-            renderAll();
-            closeModal();
         }
 
         if (e.target.id === 'deviceForm') {
@@ -1046,28 +1161,50 @@ document.addEventListener('DOMContentLoaded', () => {
             const customer = appState.customers.find(c => c.id === appState.editingCustomerId);
             
             if (customer) {
-                if (appState.editingDeviceId) {
-                    // Edit device
-                    const deviceIndex = customer.devices.findIndex(d => d.id === appState.editingDeviceId);
-                    if (deviceIndex !== -1) {
-                        customer.devices[deviceIndex] = { ...customer.devices[deviceIndex], ...deviceData };
+                try {
+                    if (appState.editingDeviceId) {
+                        const deviceIndex = customer.devices.findIndex(d => d.id === appState.editingDeviceId);
+                        if (deviceIndex !== -1) {
+                            customer.devices[deviceIndex] = { ...customer.devices[deviceIndex], ...deviceData };
+                        }
+                    } else {
+                        const newDevice = { ...deviceData, id: generateId() };
+                        if (!customer.devices) customer.devices = [];
+                        customer.devices.push(newDevice);
                     }
-                } else {
-                    // Add device
-                    const newDevice = { ...deviceData, id: generateId() };
-                    if (!customer.devices) customer.devices = [];
-                    customer.devices.push(newDevice);
+
+                    const latestDevice = appState.editingDeviceId
+                        ? customer.devices.find(d => d.id === appState.editingDeviceId)
+                        : customer.devices[customer.devices.length - 1];
+
+                    const status = latestDevice?.endDate ? getSubscriptionStatus(latestDevice.endDate).text : 'Active';
+                    await updateCustomerInAirtable(customer.id, {
+                        car_name: latestDevice?.carName || '',
+                        imei: latestDevice?.imei || '',
+                        sim_number: latestDevice?.devicePhone || '',
+                        subscription_end: latestDevice?.endDate || '',
+                        status,
+                    });
+
+                    e.target.reset();
+                    renderAll();
+                    closeModal();
+                    alert('Device details saved successfully.');
+                } catch (error) {
+                    handleError(error, 'Failed to save device details. Please try again.');
                 }
-                saveData();
-                renderAll();
-                closeModal();
             }
         }
     });
 
     // --- Initial Load ---
-    const init = () => {
-        loadData();
+    const init = async () => {
+        try {
+            await loadData();
+        } catch (error) {
+            handleError(error, 'Failed to load customers from Airtable. Please check your Airtable settings.');
+            appState.customers = [];
+        }
         navigateTo('dashboard');
         renderAll();
     };
