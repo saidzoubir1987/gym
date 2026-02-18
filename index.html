@@ -615,15 +615,61 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- Data Persistence ---
-    const saveData = () => {
-        localStorage.setItem('subscriptionData', JSON.stringify(appState.customers));
+    const API_URL = 'https://script.google.com/macros/s/AKfycbzzas305pqUsYaIL7etEL9OnRRtDQ8cgec0fFCegLX0Hk_YsC3pC7TeHwL4sZJtYruM/exec';
+    const DEFAULT_HEADERS = { 'Content-Type': 'application/json' };
+
+    const parseApiResponse = async (response) => {
+        const text = await response.text();
+        if (!text) return null;
+        try {
+            return JSON.parse(text);
+        } catch {
+            return null;
+        }
     };
 
-    const loadData = () => {
-        const data = localStorage.getItem('subscriptionData');
-        if (data) {
-            appState.customers = JSON.parse(data);
+    const loadCustomersFromAPI = async () => {
+        try {
+            const response = await fetch(API_URL, { method: 'GET' });
+            if (!response.ok) throw new Error(`Failed to load customers: ${response.status}`);
+            const data = await parseApiResponse(response);
+            if (Array.isArray(data)) return data;
+            if (Array.isArray(data?.customers)) return data.customers;
+            if (Array.isArray(data?.data)) return data.data;
+            return [];
+        } catch (error) {
+            console.error('Error loading customers from API:', error);
+            return [];
         }
+    };
+
+    const saveCustomerToAPI = async (customer) => {
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: DEFAULT_HEADERS,
+            body: JSON.stringify(customer),
+        });
+        if (!response.ok) throw new Error(`Failed to save customer: ${response.status}`);
+        return parseApiResponse(response);
+    };
+
+    const updateCustomerInAPI = async (customer) => {
+        const response = await fetch(API_URL, {
+            method: 'PUT',
+            headers: DEFAULT_HEADERS,
+            body: JSON.stringify(customer),
+        });
+        if (!response.ok) throw new Error(`Failed to update customer: ${response.status}`);
+        return parseApiResponse(response);
+    };
+
+    const deleteCustomerFromAPI = async (id) => {
+        const response = await fetch(`${API_URL}?id=${encodeURIComponent(id)}`, {
+            method: 'DELETE',
+            headers: DEFAULT_HEADERS,
+        });
+        if (!response.ok) throw new Error(`Failed to delete customer: ${response.status}`);
+        return parseApiResponse(response);
     };
 
     // --- Rendering ---
@@ -965,7 +1011,7 @@ document.addEventListener('DOMContentLoaded', () => {
         showCustomerForm();
     });
 
-    document.addEventListener('click', (e) => {
+    document.addEventListener('click', async (e) => {
         if (e.target.matches('.close-modal-btn') || (e.target.matches('.modal-backdrop') && !e.target.closest('.modal')) || e.target.closest('[data-action="close-modal"]')) {
             closeModal();
         }
@@ -986,9 +1032,14 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             case 'delete-customer': {
                 if (confirm('Are you sure you want to delete this customer and all their devices?')) {
-                    appState.customers = appState.customers.filter(c => c.id !== customerId);
-                    saveData();
-                    renderAll();
+                    try {
+                        await deleteCustomerFromAPI(customerId);
+                        appState.customers = appState.customers.filter(c => c.id !== customerId);
+                        renderAll();
+                    } catch (error) {
+                        console.error('Error deleting customer:', error);
+                        alert('Failed to delete customer. Please try again.');
+                    }
                 }
                 break;
             }
@@ -1017,7 +1068,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    document.addEventListener('submit', (e) => {
+    document.addEventListener('submit', async (e) => {
         if (e.target.id === 'customerForm') {
             e.preventDefault();
             const formData = new FormData(e.target);
@@ -1027,14 +1078,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Edit existing customer
                 const customerIndex = appState.customers.findIndex(c => c.id === appState.editingCustomerId);
                 if(customerIndex !== -1) {
-                    appState.customers[customerIndex] = { ...appState.customers[customerIndex], ...customerData };
+                    const updatedCustomer = { ...appState.customers[customerIndex], ...customerData };
+                    try {
+                        await updateCustomerInAPI(updatedCustomer);
+                        appState.customers[customerIndex] = updatedCustomer;
+                    } catch (error) {
+                        console.error('Error updating customer:', error);
+                        alert('Failed to save data. Please try again.');
+                        return;
+                    }
                 }
             } else {
                 // Add new customer
                 const newCustomer = { ...customerData, id: generateId(), devices: [] };
-                appState.customers.push(newCustomer);
+                try {
+                    await saveCustomerToAPI(newCustomer);
+                    appState.customers.push(newCustomer);
+                } catch (error) {
+                    console.error('Error saving customer:', error);
+                    alert('Failed to save data. Please try again.');
+                    return;
+                }
             }
-            saveData();
             renderAll();
             closeModal();
         }
@@ -1058,7 +1123,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (!customer.devices) customer.devices = [];
                     customer.devices.push(newDevice);
                 }
-                saveData();
+                try {
+                    await updateCustomerInAPI(customer);
+                } catch (error) {
+                    console.error('Error updating customer devices:', error);
+                    alert('Failed to save data. Please try again.');
+                    return;
+                }
                 renderAll();
                 closeModal();
             }
@@ -1066,8 +1137,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // --- Initial Load ---
-    const init = () => {
-        loadData();
+    const init = async () => {
+        appState.customers = await loadCustomersFromAPI();
         navigateTo('dashboard');
         renderAll();
     };
