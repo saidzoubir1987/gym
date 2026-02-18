@@ -1,0 +1,1079 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subscription Management</title>
+    <style>
+        :root {
+            --bg-primary: #1a1d21;
+            --bg-secondary: #24282e;
+            --bg-tertiary: #2d323a;
+            --text-primary: #e0e0e0;
+            --text-secondary: #a0a0a0;
+            --accent-primary: #4a90e2;
+            --accent-secondary: #50e3c2;
+            --warning: #f5a623;
+            --danger: #d0021b;
+            --success: #7ed321;
+            --border-color: #3a4149;
+            --shadow-color: rgba(0, 0, 0, 0.2);
+            --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            font-family: var(--font-family);
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            font-size: 16px;
+            overflow-x: hidden;
+        }
+
+        body {
+            display: flex;
+        }
+
+        /* --- Scrollbar --- */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #4f5a6b;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--accent-primary);
+        }
+
+        /* --- Sidebar --- */
+        .sidebar {
+            width: 250px;
+            background-color: var(--bg-secondary);
+            padding: 1.5rem 0;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--border-color);
+            transition: transform 0.3s ease;
+            position: fixed;
+            height: 100%;
+            z-index: 1000;
+        }
+        .sidebar-header {
+            padding: 0 1.5rem 1.5rem 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 1rem;
+        }
+        .sidebar-header h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            fill: var(--accent-secondary);
+        }
+        .nav-menu {
+            list-style: none;
+            flex-grow: 1;
+        }
+        .nav-item a {
+            display: flex;
+            align-items: center;
+            padding: 0.9rem 1.5rem;
+            text-decoration: none;
+            color: var(--text-secondary);
+            font-weight: 500;
+            transition: background-color 0.2s ease, color 0.2s ease;
+            gap: 1rem;
+            border-left: 3px solid transparent;
+        }
+        .nav-item a:hover {
+            background-color: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+        .nav-item a.active {
+            background-color: rgba(74, 144, 226, 0.1);
+            color: var(--accent-primary);
+            border-left-color: var(--accent-primary);
+        }
+        .nav-icon {
+            width: 20px;
+            height: 20px;
+            fill: currentColor;
+        }
+        .sidebar-footer {
+            padding: 1rem 1.5rem;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            text-align: center;
+        }
+
+        /* --- Main Content --- */
+        .main-container {
+            flex-grow: 1;
+            margin-left: 250px;
+            display: flex;
+            flex-direction: column;
+            transition: margin-left 0.3s ease;
+        }
+        .header {
+            background-color: var(--bg-secondary);
+            padding: 1rem 2rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 999;
+        }
+        .menu-toggle {
+            display: none;
+            background: none;
+            border: none;
+            color: var(--text-primary);
+            cursor: pointer;
+        }
+        .menu-toggle-icon {
+            width: 24px;
+            height: 24px;
+            fill: currentColor;
+        }
+        .page-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+        .content-area {
+            padding: 2rem;
+            flex-grow: 1;
+            overflow-y: auto;
+        }
+        .page-view {
+            display: none;
+        }
+        .page-view.active {
+            display: block;
+        }
+
+        /* --- Dashboard --- */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1.5rem;
+        }
+        .stat-card {
+            background-color: var(--bg-secondary);
+            padding: 1.5rem;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px var(--shadow-color);
+        }
+        .stat-card h3 {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+        .stat-card .value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        .stat-card.expiring .value { color: var(--warning); }
+        .stat-card.expired .value { color: var(--danger); }
+        
+        /* --- General list styles --- */
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        .btn {
+            padding: 0.6rem 1.2rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .btn-primary {
+            background-color: var(--accent-primary);
+            color: #fff;
+        }
+        .btn-primary:hover {
+            background-color: #3a80d2;
+        }
+        .btn:active {
+            transform: scale(0.98);
+        }
+        .btn-icon {
+            width: 16px;
+            height: 16px;
+            fill: currentColor;
+        }
+
+        .data-list {
+            display: grid;
+            gap: 1.5rem;
+            grid-template-columns: 1fr;
+        }
+        .list-card {
+            background-color: var(--bg-secondary);
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            padding: 1.5rem;
+            transition: box-shadow 0.2s;
+        }
+        .list-card:hover {
+            box-shadow: 0 4px 15px var(--shadow-color);
+        }
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .card-header-title h4 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        .card-header-title p {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+        .card-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        .action-btn {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background-color 0.2s, color 0.2s;
+        }
+        .action-btn:hover {
+            background-color: var(--accent-primary);
+            color: #fff;
+        }
+        .action-btn.delete:hover {
+            background-color: var(--danger);
+        }
+        .action-btn-icon {
+            width: 16px;
+            height: 16px;
+            fill: currentColor;
+        }
+
+        .device-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .device-table th, .device-table td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .device-table th {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+        .device-table tr:last-child td {
+            border-bottom: none;
+        }
+        .status-badge {
+            padding: 0.25rem 0.6rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #fff;
+        }
+        .status-active { background-color: var(--success); }
+        .status-expiring { background-color: var(--warning); }
+        .status-expired { background-color: var(--danger); }
+        .whatsapp-btn {
+            background: #25D366;
+            color: #fff;
+            padding: 0.4rem 0.8rem;
+        }
+        .whatsapp-btn:hover {
+            background: #128C7E;
+        }
+        
+        /* --- Modal --- */
+        .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s;
+        }
+        .modal-backdrop.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal {
+            background-color: var(--bg-secondary);
+            padding: 2rem;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 500px;
+            transform: scale(0.95);
+            transition: transform 0.3s ease;
+        }
+        .modal-backdrop.visible .modal {
+            transform: scale(1);
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+        .close-modal-btn {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+        .form-group input {
+            width: 100%;
+            padding: 0.75rem;
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 1rem;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.3);
+        }
+        .modal-footer {
+            margin-top: 2rem;
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+        }
+        .btn-secondary {
+            background-color: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+        .btn-secondary:hover {
+            background-color: var(--border-color);
+        }
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            background-color: var(--bg-secondary);
+            border-radius: 8px;
+            border: 2px dashed var(--border-color);
+        }
+        .empty-state h3 {
+            font-size: 1.5rem;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+        }
+        .empty-state p {
+            color: var(--text-secondary);
+            margin-bottom: 1.5rem;
+        }
+
+        /* --- Responsive --- */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            .main-container {
+                margin-left: 0;
+            }
+            .menu-toggle {
+                display: block;
+            }
+            .header {
+                padding: 1rem;
+            }
+            .content-area {
+                padding: 1rem;
+            }
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            .device-table {
+                display: block;
+                overflow-x: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <svg class="logo-icon" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"></path></svg>
+            <h1>SubManager</h1>
+        </div>
+        <ul class="nav-menu" id="navMenu">
+            <li class="nav-item">
+                <a href="#" data-view="dashboard" class="active">
+                    <svg class="nav-icon" viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
+                    <span>Dashboard</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="#" data-view="customers">
+                    <svg class="nav-icon" viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+                    <span>Customers</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="#" data-view="devices">
+                    <svg class="nav-icon" viewBox="0 0 24 24"><path d="M18.5 3H5.5C4.12 3 3 4.12 3 5.5v13C3 19.88 4.12 21 5.5 21h13c1.38 0 2.5-1.12 2.5-2.5v-13C21 4.12 19.88 3 18.5 3zM12 5.5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5-1.5-.67-1.5-1.5.67-1.5 1.5-1.5zm-3 13.5H6v-6h3v6zm3.5 0h-1v-6h1v6zm3.5 0h-1v-6h1v6zm-1-8.5c0-.28.22-.5.5-.5h2c.28 0 .5.22.5.5v3.5h-3V10.5z"/></svg>
+                    <span>All Devices</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="#" data-view="expiring">
+                    <svg class="nav-icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15h2v2h-2zm0-8h2v6h-2z"/></svg>
+                    <span>Expiring Soon</span>
+                </a>
+            </li>
+        </ul>
+        <div class="sidebar-footer">
+            &copy; 2024 SubManager
+        </div>
+    </aside>
+
+    <div class="main-container" id="mainContainer">
+        <header class="header">
+            <button class="menu-toggle" id="menuToggle">
+                <svg class="menu-toggle-icon" viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+            </button>
+            <h2 class="page-title" id="pageTitle">Dashboard</h2>
+        </header>
+
+        <main class="content-area">
+            <!-- Dashboard View -->
+            <div id="dashboard-view" class="page-view active">
+                <div class="stats-grid">
+                    <div class="stat-card"><h3 >Total Customers</h3><div class="value" id="totalCustomers">0</div></div>
+                    <div class="stat-card"><h3 >Total Devices</h3><div class="value" id="totalDevices">0</div></div>
+                    <div class="stat-card"><h3 >Active Subscriptions</h3><div class="value" id="activeSubscriptions">0</div></div>
+                    <div class="stat-card expiring"><h3 >Expiring in 30 Days</h3><div class="value" id="expiringSoon">0</div></div>
+                    <div class="stat-card expired"><h3 >Expired Subscriptions</h3><div class="value" id="expiredSubscriptions">0</div></div>
+                </div>
+            </div>
+
+            <!-- Customers View -->
+            <div id="customers-view" class="page-view">
+                <div class="section-header">
+                    <h3>All Customers</h3>
+                    <button class="btn btn-primary" id="addCustomerBtn">
+                        <svg class="btn-icon" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                        Add Customer
+                    </button>
+                </div>
+                <div class="data-list" id="customerList">
+                    <!-- Customer cards will be injected here -->
+                </div>
+            </div>
+
+            <!-- All Devices View -->
+            <div id="devices-view" class="page-view">
+                <div class="section-header">
+                    <h3>All Devices</h3>
+                </div>
+                <div class="data-list" id="allDevicesList">
+                    <!-- Device list will be injected here -->
+                </div>
+            </div>
+
+            <!-- Expiring Soon View -->
+            <div id="expiring-view" class="page-view">
+                <div class="section-header">
+                    <h3>Subscriptions Expiring in 30 Days</h3>
+                </div>
+                <div class="data-list" id="expiringList">
+                    <!-- Expiring devices list will be injected here -->
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-backdrop" id="modalBackdrop">
+        <div class="modal" id="modal">
+            <!-- Modal content will be injected here -->
+        </div>
+    </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+    const appState = {
+        customers: [],
+        currentView: 'dashboard',
+        editingCustomerId: null,
+        editingDeviceId: null,
+    };
+
+    // --- DOM Elements ---
+    const sidebar = document.getElementById('sidebar');
+    const mainContainer = document.getElementById('mainContainer');
+    const menuToggle = document.getElementById('menuToggle');
+    const navMenu = document.getElementById('navMenu');
+    const pageTitle = document.getElementById('pageTitle');
+    const modalBackdrop = document.getElementById('modalBackdrop');
+    const modal = document.getElementById('modal');
+
+    // --- Utility Functions ---
+    const generateId = () => `id_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const formatDate = (dateString) => {
+        if (!dateString) return 'N/A';
+        const date = new Date(dateString);
+        return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    };
+    const getSubscriptionStatus = (endDateString) => {
+        if (!endDateString) return { text: 'N/A', class: '' };
+        const now = new Date();
+        const endDate = new Date(endDateString);
+        const thirtyDaysFromNow = new Date();
+        thirtyDaysFromNow.setDate(now.getDate() + 30);
+        now.setHours(0, 0, 0, 0);
+        endDate.setHours(0, 0, 0, 0);
+        
+        if (endDate < now) {
+            return { text: 'Expired', class: 'status-expired' };
+        } else if (endDate <= thirtyDaysFromNow) {
+            return { text: 'Expiring Soon', class: 'status-expiring' };
+        } else {
+            return { text: 'Active', class: 'status-active' };
+        }
+    };
+
+    // --- Data Persistence ---
+    const saveData = () => {
+        localStorage.setItem('subscriptionData', JSON.stringify(appState.customers));
+    };
+
+    const loadData = () => {
+        const data = localStorage.getItem('subscriptionData');
+        if (data) {
+            appState.customers = JSON.parse(data);
+        }
+    };
+
+    // --- Rendering ---
+    const renderAll = () => {
+        renderDashboard();
+        renderCustomers();
+        renderAllDevices();
+        renderExpiringSoon();
+    };
+
+    const renderDashboard = () => {
+        const allDevices = appState.customers.flatMap(c => c.devices || []);
+        let activeCount = 0;
+        let expiringCount = 0;
+        let expiredCount = 0;
+
+        allDevices.forEach(device => {
+            const status = getSubscriptionStatus(device.endDate);
+            if (status.class === 'status-active') activeCount++;
+            else if (status.class === 'status-expiring') expiringCount++;
+            else if (status.class === 'status-expired') expiredCount++;
+        });
+
+        document.getElementById('totalCustomers').textContent = appState.customers.length;
+        document.getElementById('totalDevices').textContent = allDevices.length;
+        document.getElementById('activeSubscriptions').textContent = activeCount;
+        document.getElementById('expiringSoon').textContent = expiringCount;
+        document.getElementById('expiredSubscriptions').textContent = expiredCount;
+    };
+    
+    const renderEmptyState = (message, suggestion) => `
+        <div class="empty-state">
+            <h3>${message}</h3>
+            <p>${suggestion}</p>
+        </div>
+    `;
+
+    const renderCustomers = () => {
+        const container = document.getElementById('customerList');
+        if (appState.customers.length === 0) {
+            container.innerHTML = renderEmptyState('No Customers Found', 'Click "Add Customer" to get started.');
+            return;
+        }
+        
+        container.innerHTML = appState.customers.map(customer => `
+            <div class="list-card">
+                <div class="card-header">
+                    <div class="card-header-title">
+                        <h4>${customer.name}</h4>
+                        <p>${customer.phone} ${customer.email ? `&bull; ${customer.email}` : ''}</p>
+                    </div>
+                    <div class="card-actions">
+                        <button class="action-btn" data-action="add-device" data-customer-id="${customer.id}" title="Add Device">
+                            <svg class="action-btn-icon" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                        </button>
+                        <button class="action-btn" data-action="edit-customer" data-customer-id="${customer.id}" title="Edit Customer">
+                            <svg class="action-btn-icon" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                        </button>
+                        <button class="action-btn delete" data-action="delete-customer" data-customer-id="${customer.id}" title="Delete Customer">
+                            <svg class="action-btn-icon" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                        </button>
+                    </div>
+                </div>
+                ${(customer.devices && customer.devices.length > 0) ? `
+                <table class="device-table">
+                    <thead>
+                        <tr>
+                            <th>Car Name</th>
+                            <th>IMEI</th>
+                            <th>End Date</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${customer.devices.map(device => {
+                            const status = getSubscriptionStatus(device.endDate);
+                            return `
+                                <tr>
+                                    <td>${device.carName}</td>
+                                    <td>${device.imei}</td>
+                                    <td>${formatDate(device.endDate)}</td>
+                                    <td><span class="status-badge ${status.class}">${status.text}</span></td>
+                                    <td>
+                                        <div class="card-actions">
+                                            <button class="action-btn" data-action="edit-device" data-customer-id="${customer.id}" data-device-id="${device.id}" title="Edit Device">
+                                               <svg class="action-btn-icon" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                                            </button>
+                                            <button class="action-btn" data-action="whatsapp-reminder" data-customer-phone="${customer.phone}" data-car-name="${device.carName}" data-end-date="${formatDate(device.endDate)}" title="Send Reminder">
+                                               <svg class="action-btn-icon" viewBox="0 0 24 24"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.79.49 3.48 1.36 4.96L2 22l5.25-1.38c1.41.81 3.02 1.28 4.79 1.28h.01c5.46 0 9.91-4.45 9.91-9.91S17.5 2 12.04 2zM9.53 8.5c.24-.12.56-.25.83-.12.42.21.64.97.73 1.12.1.15.12.24.03.42c-.09.18-.3.42-.45.56-.15.15-.3.18-.42.33s-.3.33-.12.6c.18.27.8 1.33 1.73 2.18.99.9 1.93 1.14 2.22 1.23.29.09.47.06.66-.09.21-.18.87-.84.99-.99s.24-.24.42-.12c.18.12 1.14.54 1.33.63.19.09.33.12.39.18.06.06.06.96-.15 1.14-.21.18-1.39 1.23-1.62 1.23-.42 0-1.29-.21-2.4-.78-1.5-.78-2.5-1.8-2.67-2.04s-.27-.3-.54-.3c-.24 0-.42.03-.6.06-.18.03-1.02.48-1.2.6s-.3.15-.45.03c-.15-.12-.6-.24-.87-.45s-.45-.42-.63-.72c-.18-.3-.36-.63-.27-.9.09-.27.24-.42.33-.54z"/></svg>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+                ` : '<p class="text-secondary" style="padding: 1rem 0;">No devices added for this customer yet.</p>'}
+            </div>
+        `).join('');
+    };
+    
+    const renderAllDevices = () => {
+        const container = document.getElementById('allDevicesList');
+        const allDevices = appState.customers.flatMap(c => 
+            (c.devices || []).map(d => ({ ...d, customerName: c.name, customerId: c.id, customerPhone: c.phone }))
+        );
+
+        if (allDevices.length === 0) {
+            container.innerHTML = renderEmptyState('No Devices Found', 'Add a customer and then add a device to them.');
+            return;
+        }
+
+        container.innerHTML = `
+            <div class="list-card">
+                <table class="device-table">
+                    <thead>
+                        <tr>
+                            <th>Customer</th>
+                            <th>Car Name</th>
+                            <th>IMEI</th>
+                            <th>End Date</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    ${allDevices.map(device => {
+                        const status = getSubscriptionStatus(device.endDate);
+                        return `
+                        <tr>
+                            <td>${device.customerName}</td>
+                            <td>${device.carName}</td>
+                            <td>${device.imei}</td>
+                            <td>${formatDate(device.endDate)}</td>
+                            <td><span class="status-badge ${status.class}">${status.text}</span></td>
+                            <td>
+                               <div class="card-actions">
+                                    <button class="action-btn" data-action="edit-device" data-customer-id="${device.customerId}" data-device-id="${device.id}" title="Edit Device">
+                                       <svg class="action-btn-icon" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                                    </button>
+                                    <button class="action-btn" data-action="whatsapp-reminder" data-customer-phone="${device.customerPhone}" data-car-name="${device.carName}" data-end-date="${formatDate(device.endDate)}" title="Send Reminder">
+                                       <svg class="action-btn-icon" viewBox="0 0 24 24"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.79.49 3.48 1.36 4.96L2 22l5.25-1.38c1.41.81 3.02 1.28 4.79 1.28h.01c5.46 0 9.91-4.45 9.91-9.91S17.5 2 12.04 2zM9.53 8.5c.24-.12.56-.25.83-.12.42.21.64.97.73 1.12.1.15.12.24.03.42c-.09.18-.3.42-.45.56-.15.15-.3.18-.42.33s-.3.33-.12.6c.18.27.8 1.33 1.73 2.18.99.9 1.93 1.14 2.22 1.23.29.09.47.06.66-.09.21-.18.87-.84.99-.99s.24-.24.42-.12c.18.12 1.14.54 1.33.63.19.09.33.12.39.18.06.06.06.96-.15 1.14-.21.18-1.39 1.23-1.62 1.23-.42 0-1.29-.21-2.4-.78-1.5-.78-2.5-1.8-2.67-2.04s-.27-.3-.54-.3c-.24 0-.42.03-.6.06-.18.03-1.02.48-1.2.6s-.3.15-.45.03c-.15-.12-.6-.24-.87-.45s-.45-.42-.63-.72c-.18-.3-.36-.63-.27-.9.09-.27.24-.42.33-.54z"/></svg>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        `
+                    }).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    };
+
+    const renderExpiringSoon = () => {
+        const container = document.getElementById('expiringList');
+        const expiringDevices = appState.customers.flatMap(c => 
+            (c.devices || []).map(d => ({ ...d, customerName: c.name, customerId: c.id, customerPhone: c.phone }))
+        ).filter(d => getSubscriptionStatus(d.endDate).class === 'status-expiring');
+
+        if (expiringDevices.length === 0) {
+            container.innerHTML = renderEmptyState('All Clear!', 'No subscriptions are expiring in the next 30 days.');
+            return;
+        }
+        // Re-use the all devices render logic
+        container.innerHTML = `
+            <div class="list-card">
+                <table class="device-table">
+                    <thead>
+                        <tr>
+                            <th>Customer</th>
+                            <th>Car Name</th>
+                            <th>IMEI</th>
+                            <th>End Date</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    ${expiringDevices.map(device => {
+                        const status = getSubscriptionStatus(device.endDate);
+                        return `
+                        <tr>
+                            <td>${device.customerName}</td>
+                            <td>${device.carName}</td>
+                            <td>${device.imei}</td>
+                            <td>${formatDate(device.endDate)}</td>
+                            <td><span class="status-badge ${status.class}">${status.text}</span></td>
+                             <td>
+                               <div class="card-actions">
+                                    <button class="action-btn" data-action="edit-device" data-customer-id="${device.customerId}" data-device-id="${device.id}" title="Edit Device">
+                                       <svg class="action-btn-icon" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                                    </button>
+                                    <button class="action-btn" data-action="whatsapp-reminder" data-customer-phone="${device.customerPhone}" data-car-name="${device.carName}" data-end-date="${formatDate(device.endDate)}" title="Send Reminder">
+                                       <svg class="action-btn-icon" viewBox="0 0 24 24"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.79.49 3.48 1.36 4.96L2 22l5.25-1.38c1.41.81 3.02 1.28 4.79 1.28h.01c5.46 0 9.91-4.45 9.91-9.91S17.5 2 12.04 2zM9.53 8.5c.24-.12.56-.25.83-.12.42.21.64.97.73 1.12.1.15.12.24.03.42c-.09.18-.3.42-.45.56-.15.15-.3.18-.42.33s-.3.33-.12.6c.18.27.8 1.33 1.73 2.18.99.9 1.93 1.14 2.22 1.23.29.09.47.06.66-.09.21-.18.87-.84.99-.99s.24-.24.42-.12c.18.12 1.14.54 1.33.63.19.09.33.12.39.18.06.06.06.96-.15 1.14-.21.18-1.39 1.23-1.62 1.23-.42 0-1.29-.21-2.4-.78-1.5-.78-2.5-1.8-2.67-2.04s-.27-.3-.54-.3c-.24 0-.42.03-.6.06-.18.03-1.02.48-1.2.6s-.3.15-.45.03c-.15-.12-.6-.24-.87-.45s-.45-.42-.63-.72c-.18-.3-.36-.63-.27-.9.09-.27.24-.42.33-.54z"/></svg>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        `
+                    }).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    };
+
+    // --- Navigation ---
+    const navigateTo = (viewId) => {
+        appState.currentView = viewId;
+        document.querySelectorAll('.page-view').forEach(view => view.classList.remove('active'));
+        document.getElementById(`${viewId}-view`).classList.add('active');
+
+        document.querySelectorAll('.nav-menu a').forEach(a => a.classList.remove('active'));
+        const activeLink = document.querySelector(`.nav-menu a[data-view="${viewId}"]`);
+        if (activeLink) {
+            activeLink.classList.add('active');
+            pageTitle.textContent = activeLink.querySelector('span').textContent;
+        }
+
+        if (window.innerWidth <= 768) {
+            sidebar.classList.remove('open');
+        }
+    };
+
+    // --- Modal & Forms ---
+    const openModal = (content) => {
+        modal.innerHTML = content;
+        modalBackdrop.classList.add('visible');
+    };
+
+    const closeModal = () => {
+        modalBackdrop.classList.remove('visible');
+        modal.innerHTML = '';
+        appState.editingCustomerId = null;
+        appState.editingDeviceId = null;
+    };
+    
+    const showCustomerForm = (customer = null) => {
+        const isEditing = customer !== null;
+        const title = isEditing ? 'Edit Customer' : 'Add New Customer';
+        const formContent = `
+            <div class="modal-header">
+                <h3 class="modal-title">${title}</h3>
+                <button class="close-modal-btn">&times;</button>
+            </div>
+            <form id="customerForm">
+                <div class="form-group">
+                    <label for="customerName">Full Name</label>
+                    <input type="text" id="customerName" name="name" required value="${isEditing ? customer.name : ''}">
+                </div>
+                <div class="form-group">
+                    <label for="customerPhone">Phone Number</label>
+                    <input type="tel" id="customerPhone" name="phone" required value="${isEditing ? customer.phone : ''}">
+                </div>
+                <div class="form-group">
+                    <label for="customerEmail">Email (Optional)</label>
+                    <input type="email" id="customerEmail" name="email" value="${isEditing ? customer.email : ''}">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-action="close-modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">${isEditing ? 'Save Changes' : 'Add Customer'}</button>
+                </div>
+            </form>
+        `;
+        openModal(formContent);
+    };
+
+    const showDeviceForm = (device = null, customerId) => {
+        const isEditing = device !== null;
+        const title = isEditing ? 'Edit Device' : 'Add New Device';
+        const today = new Date().toISOString().split('T')[0];
+
+        const formContent = `
+            <div class="modal-header">
+                <h3 class="modal-title">${title}</h3>
+                <button class="close-modal-btn">&times;</button>
+            </div>
+            <form id="deviceForm">
+                 <div class="form-group">
+                    <label for="carName">Car Name</label>
+                    <input type="text" id="carName" name="carName" required value="${isEditing ? device.carName : ''}">
+                </div>
+                <div class="form-group">
+                    <label for="imei">IMEI Number</label>
+                    <input type="text" id="imei" name="imei" required value="${isEditing ? device.imei : ''}">
+                </div>
+                <div class="form-group">
+                    <label for="devicePhone">Device Phone Number</label>
+                    <input type="tel" id="devicePhone" name="devicePhone" required value="${isEditing ? device.devicePhone : ''}">
+                </div>
+                <div class="form-group">
+                    <label for="startDate">Subscription Start Date</label>
+                    <input type="date" id="startDate" name="startDate" required value="${isEditing ? device.startDate : today}">
+                </div>
+                <div class="form-group">
+                    <label for="endDate">Subscription End Date (auto-calculated)</label>
+                    <input type="date" id="endDate" name="endDate" readonly value="${isEditing ? device.endDate : ''}">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-action="close-modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">${isEditing ? 'Save Changes' : 'Add Device'}</button>
+                </div>
+            </form>
+        `;
+        openModal(formContent);
+        
+        const startDateInput = document.getElementById('startDate');
+        const endDateInput = document.getElementById('endDate');
+
+        const calculateEndDate = () => {
+            if (startDateInput.value) {
+                const startDate = new Date(startDateInput.value);
+                startDate.setFullYear(startDate.getFullYear() + 1);
+                endDateInput.value = startDate.toISOString().split('T')[0];
+            }
+        };
+
+        startDateInput.addEventListener('change', calculateEndDate);
+        if(!isEditing) calculateEndDate();
+    };
+
+    // --- Event Handlers ---
+    navMenu.addEventListener('click', (e) => {
+        e.preventDefault();
+        const link = e.target.closest('a');
+        if (link && link.dataset.view) {
+            navigateTo(link.dataset.view);
+        }
+    });
+
+    menuToggle.addEventListener('click', () => {
+        sidebar.classList.toggle('open');
+    });
+
+    document.getElementById('addCustomerBtn').addEventListener('click', () => {
+        showCustomerForm();
+    });
+
+    document.addEventListener('click', (e) => {
+        if (e.target.matches('.close-modal-btn') || (e.target.matches('.modal-backdrop') && !e.target.closest('.modal')) || e.target.closest('[data-action="close-modal"]')) {
+            closeModal();
+        }
+
+        const action = e.target.closest('[data-action]');
+        if (!action) return;
+
+        const { customerId, deviceId } = action.dataset;
+
+        switch (action.dataset.action) {
+            case 'edit-customer': {
+                const customer = appState.customers.find(c => c.id === customerId);
+                if(customer) {
+                    appState.editingCustomerId = customerId;
+                    showCustomerForm(customer);
+                }
+                break;
+            }
+            case 'delete-customer': {
+                if (confirm('Are you sure you want to delete this customer and all their devices?')) {
+                    appState.customers = appState.customers.filter(c => c.id !== customerId);
+                    saveData();
+                    renderAll();
+                }
+                break;
+            }
+            case 'add-device': {
+                appState.editingCustomerId = customerId;
+                showDeviceForm(null, customerId);
+                break;
+            }
+            case 'edit-device': {
+                const customer = appState.customers.find(c => c.id === customerId);
+                const device = customer?.devices.find(d => d.id === deviceId);
+                if (device) {
+                    appState.editingCustomerId = customerId;
+                    appState.editingDeviceId = deviceId;
+                    showDeviceForm(device, customerId);
+                }
+                break;
+            }
+            case 'whatsapp-reminder': {
+                const { customerPhone, carName, endDate } = action.dataset;
+                const message = `Hello, your tracking device subscription for ${carName} will expire on ${endDate}. Please renew it.`;
+                const whatsappUrl = `https://wa.me/${customerPhone}?text=${encodeURIComponent(message)}`;
+                window.open(whatsappUrl, '_blank');
+                break;
+            }
+        }
+    });
+
+    document.addEventListener('submit', (e) => {
+        if (e.target.id === 'customerForm') {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const customerData = Object.fromEntries(formData.entries());
+
+            if (appState.editingCustomerId) {
+                // Edit existing customer
+                const customerIndex = appState.customers.findIndex(c => c.id === appState.editingCustomerId);
+                if(customerIndex !== -1) {
+                    appState.customers[customerIndex] = { ...appState.customers[customerIndex], ...customerData };
+                }
+            } else {
+                // Add new customer
+                const newCustomer = { ...customerData, id: generateId(), devices: [] };
+                appState.customers.push(newCustomer);
+            }
+            saveData();
+            renderAll();
+            closeModal();
+        }
+
+        if (e.target.id === 'deviceForm') {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const deviceData = Object.fromEntries(formData.entries());
+            const customer = appState.customers.find(c => c.id === appState.editingCustomerId);
+            
+            if (customer) {
+                if (appState.editingDeviceId) {
+                    // Edit device
+                    const deviceIndex = customer.devices.findIndex(d => d.id === appState.editingDeviceId);
+                    if (deviceIndex !== -1) {
+                        customer.devices[deviceIndex] = { ...customer.devices[deviceIndex], ...deviceData };
+                    }
+                } else {
+                    // Add device
+                    const newDevice = { ...deviceData, id: generateId() };
+                    if (!customer.devices) customer.devices = [];
+                    customer.devices.push(newDevice);
+                }
+                saveData();
+                renderAll();
+                closeModal();
+            }
+        }
+    });
+
+    // --- Initial Load ---
+    const init = () => {
+        loadData();
+        navigateTo('dashboard');
+        renderAll();
+    };
+
+    init();
+});
+</script>
+</body>
+</html>

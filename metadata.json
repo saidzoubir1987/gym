@@ -1,0 +1,5 @@
+{
+  "name": "Subscription Management SaaS",
+  "description": "A complete, single-file Subscription Management SaaS Web App for tracking annual subscriptions for devices. It features customer and device management, automatic expiration tracking, WhatsApp reminders, and a modern dashboard interface, all running client-side with LocalStorage.",
+  "requestFramePermissions": []
+}
